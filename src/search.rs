@@ -1,77 +1,55 @@
+// src/busqueda.rs
 
 use crate::graph::Grafo;
 use crate::ubication::{Ubicaciones, InfoUbicacion};
 
-/// ----------------------------------------------------
-/// DFS recursivo para buscar el tesoro en el grafo.
+/// DFS recursivo que:
+/// 1. Marca `visitado` en el nodo actual.
+/// 2. Añade `indice_actual` a `camino_actual`.
+/// 3. Si `indice_actual == indice_tesoro`, guarda `camino_actual` en `ruta_encontrada` y retorna true.
+/// 4. Si existe `ubicaciones[indice_actual].next` y no está visitado, recursivamente vamos allí.
+/// 5. Si eso falla, intentamos todos los vecinos adyacentes del grafo.
+/// 6. Al deshacernos (backtrack), desmarcamos `visitado` y sacamos de `camino_actual`.
+///
+/// Parámetros:
 /// - `grafo`: referencia al grafo completo.
-/// - `ubicaciones`: Vec<InfoUbicacion> donde el índice coincide con el nodo.
-/// - `arbol_decision`: árbol para interpretar cada pista textual.
-/// - `indice_actual`: nodo donde estamos parados.
-/// - `camino_actual`: Vec<usize> que acumula índices de nodos visitados en la rama actual.
-/// - `ruta_encontrada`: Option<Vec<usize>> donde guardamos la ruta final (si se halla el tesoro).
-///
-/// Retorna `true` si encontramos el tesoro en esta rama, `false` si no.
-///
-/// Cuando encontramos el tesoro, clonamos `camino_actual` en `ruta_encontrada` y retornamos true
-/// para propagar la señal hacia arriba y detener más búsquedas.
+/// - `ubicaciones`: &mut Vec<InfoUbicacion>, donde `i` es la info del nodo i.
+/// - `indice_actual`: el índice del nodo donde estoy parado.
+/// - `indice_tesoro`: el índice del nodo que identifica al tesoro.
+/// - `camino_actual`: &mut Vec<usize> con los índices por donde llevo pasados.
+/// - `ruta_encontrada`: &mut Option<Vec<usize>> donde se guardará la ruta final si hallamos el tesoro.
 pub fn dfs_buscar_tesoro(
     grafo: &Grafo,
     ubicaciones: &mut Ubicaciones,
-    arbol_decision: &crate::decision::NodoDecision,
     indice_actual: usize,
+    indice_tesoro: usize,
     camino_actual: &mut Vec<usize>,
     ruta_encontrada: &mut Option<Vec<usize>>,
 ) -> bool {
-    // 1) Marcamos el nodo actual como visitado.
+    // 1) Si ya lo visitamos, cortamos
     if ubicaciones[indice_actual].visitado {
         return false;
     }
+    // Marcamos visitado
     ubicaciones[indice_actual].visitado = true;
 
-    // 2) Añadimos al camino
+    // 2) Añadir al camino actual
     camino_actual.push(indice_actual);
 
-    // 3) ¿Es este nodo el "Treasure"? (comparo por nombre en grafo)
-    let nombre_actual = &grafo.nombres[indice_actual];
-    let nom_lower = nombre_actual.to_lowercase();
-    if nom_lower.contains("treasure") || nom_lower == "treasure" {
-        // ¡Lo encontramos!
+    // 3) Si es tesoro, guardamos la ruta (clon) y devolvemos true
+    if indice_actual == indice_tesoro {
         *ruta_encontrada = Some(camino_actual.clone());
         return true;
     }
 
-    // 4) Interpretar la pista textual de este nodo para saber a qué índice ir.
-    let pista_texto = &ubicaciones[indice_actual].pista;
-    if !pista_texto.is_empty() {
-        if let Some(siguiente_indice) = arbol_decision.interpretar(pista_texto) {
-            if !ubicaciones[siguiente_indice].visitado {
-                // Llamada recursiva
-                if dfs_buscar_tesoro(
-                    grafo,
-                    ubicaciones,
-                    arbol_decision,
-                    siguiente_indice,
-                    camino_actual,
-                    ruta_encontrada,
-                ) {
-                    return true;
-                }
-            }
-        }
-    }
-
-    // 5) Si la pista nos dio un índice ya visitado o no existe pista,,
-    //    exploramos *todas* las aristas adyacentes para no quedarnos bloqueados.
-
-    for arista in &grafo.adyacencia[indice_actual] {
-        let vecino = arista.destino;
-        if !ubicaciones[vecino].visitado {
+    // 4) Tratamos de seguir la pista dinámica:
+    if let Some(sig) = ubicaciones[indice_actual].next {
+        if !ubicaciones[sig].visitado {
             if dfs_buscar_tesoro(
                 grafo,
                 ubicaciones,
-                arbol_decision,
-                vecino,
+                sig,
+                indice_tesoro,
                 camino_actual,
                 ruta_encontrada,
             ) {
@@ -80,63 +58,25 @@ pub fn dfs_buscar_tesoro(
         }
     }
 
-    // 6) Retrocedemos: desmarcamos `visitado` (para otras ramas) y sacamos del camino actual.
-    ubicaciones[indice_actual].visitado = false;
-    camino_actual.pop();
-
-    false
-}
-
-/// ----------------------------------------------------
-/// (Opcional) Función de búsqueda BFS pura si quisieras
-/// encontrar la ruta de menor número de aristas.
-/// La dejamos aquí solo como referencia.
-/*
-use std::collections::VecDeque;
-
-/// BFS para hallar el camino más corto (en número de pasos) hasta el nodo "Treasure".
-/// Retorna Option<Vec<usize>> con la secuencia de índices de nodos de la ruta, o None si no se halla.
-pub fn bfs_encontrar_tesoro(
-    grafo: &Grafo,
-    indice_inicio: usize,
-) -> Option<Vec<usize>> {
-    let n = grafo.nombres.len();
-    let mut visitado = vec![false; n];
-    let mut padre: Vec<Option<usize>> = vec![None; n];
-    let mut cola = VecDeque::new();
-
-    visitado[indice_inicio] = true;
-    cola.push_back(indice_inicio);
-
-    let mut indice_tesoro: Option<usize> = None;
-    while let Some(u) = cola.pop_front() {
-        let nombre_u = &grafo.nombres[u];
-        if nombre_u.to_lowercase().contains("treasure") {
-            indice_tesoro = Some(u);
-            break;
-        }
-        for arista in &grafo.adyacencia[u] {
-            let v = arista.destino;
-            if !visitado[v] {
-                visitado[v] = true;
-                padre[v] = Some(u);
-                cola.push_back(v);
+    // 5) Si la pista no me llevó o estaba visitado, lo resolvemos explorando todos los vecinos:
+    for arista in &grafo.adyacencia[indice_actual] {
+        let vecino = arista.destino;
+        if !ubicaciones[vecino].visitado {
+            if dfs_buscar_tesoro(
+                grafo,
+                ubicaciones,
+                vecino,
+                indice_tesoro,
+                camino_actual,
+                ruta_encontrada,
+            ) {
+                return true;
             }
         }
     }
 
-    if let Some(idx_t) = indice_tesoro {
-        // Reconstruir la ruta al revés
-        let mut ruta_rev: Vec<usize> = Vec::new();
-        let mut actual = Some(idx_t);
-        while let Some(i) = actual {
-            ruta_rev.push(i);
-            actual = padre[i];
-        }
-        ruta_rev.reverse();
-        return Some(ruta_rev);
-    }
-
-    None
+    // 6) Backtrack: desmarcamos “visitado” y sacamos del camino
+    ubicaciones[indice_actual].visitado = false;
+    camino_actual.pop();
+    false
 }
-*/

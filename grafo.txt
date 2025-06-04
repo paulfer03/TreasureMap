@@ -1,0 +1,8 @@
+Nodos: Beach,Cave,Mountain,Forest,Woods,Treasure
+Aristas:
+Beach,Cave,3
+Beach,Forest,5
+Cave,Mountain,2
+Forest,Woods,1
+Mountain,Treasure,4
+Woods,Treasure,6

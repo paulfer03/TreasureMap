@@ -1,0 +1,9 @@
+Tesoro:Treasure
+
+# Formato: NombreNodo,Pista textual,NombreDestino
+Beach,Empieza donde la arena brilla,Cave
+Cave,Busca donde el sol no llega,Mountain
+Mountain,En la cima rocosa contempla el valle,Treasure
+Forest,Permanece detrás del árbol más grande,Woods
+Woods,Allí donde las hojas murmuran al viento,Treasure
+Treasure,¡Has llegado!,

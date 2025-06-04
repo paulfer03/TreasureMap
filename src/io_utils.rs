@@ -1,4 +1,4 @@
-
+// src/io_utils.rs
 
 use crate::graph::{Arista, Grafo};
 use std::collections::HashMap;
@@ -8,29 +8,12 @@ use std::io::{self, prelude::*, BufReader, Write};
 /// ======================================
 /// Lectura de grafo desde "grafo.txt"
 /// ======================================
-
-/// Formato esperado (ejemplo):
-///   Nodos: Beach,Cave,Mountain,Forest,Woods,Treasure
-///   Aristas:
-///   Beach,Cave,3
-///   Beach,Forest,5
-///   Cave,Mountain,2
-///   Forest,Woods,1
-///   Mountain,Treasure,4
-///   Woods,Treasure,6
-///
-/// Devuelve un `Grafo` completamente construido, con:
-///  - `nombres`: Vec<String> con cada nodo en orden.
-///  - `mapa_nombre_indice`: HashMap<String, usize> de nombre→índice.
-///  - `adyacencia`: Vec<Vec<Arista>> con las conexiones no dirigidas.
-///
-/// Si hay un error de formato, se retorna Err(...).
 pub fn leer_grafo_desde_archivo(ruta: &str) -> io::Result<Grafo> {
     let archivo = File::open(ruta)?;
     let lector = BufReader::new(archivo);
     let mut lineas = lector.lines();
 
-    // 1) Primera línea: "Nodos: A,B,C,D"
+    // 1) Leer "Nodos: A,B,C,..."
     let primera = lineas
         .next()
         .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "Archivo vacío"))??;
@@ -38,7 +21,7 @@ pub fn leer_grafo_desde_archivo(ruta: &str) -> io::Result<Grafo> {
     if !primera.starts_with(prefix) {
         return Err(io::Error::new(
             io::ErrorKind::InvalidData,
-            "Formato inválido: se esperaba 'Nodos:'",
+            "Se esperaba línea que comience con 'Nodos:'",
         ));
     }
     let lista_nombres = primera[prefix.len()..].trim();
@@ -50,7 +33,7 @@ pub fn leer_grafo_desde_archivo(ruta: &str) -> io::Result<Grafo> {
     let n = nombres_vec.len();
     let mut grafo = Grafo::new(n);
 
-    // Guardamos los nombres y construimos el HashMap nombre→índice
+    // Guardar nombres e índice
     grafo.nombres = nombres_vec.clone();
     for (i, nombre) in nombres_vec.into_iter().enumerate() {
         grafo.mapa_nombre_indice.insert(nombre, i);
@@ -63,7 +46,7 @@ pub fn leer_grafo_desde_archivo(ruta: &str) -> io::Result<Grafo> {
     if linea_aristas.trim() != "Aristas:" {
         return Err(io::Error::new(
             io::ErrorKind::InvalidData,
-            "Formato inválido: se esperaba 'Aristas:'",
+            "Se esperaba línea 'Aristas:'",
         ));
     }
 
@@ -72,7 +55,8 @@ pub fn leer_grafo_desde_archivo(ruta: &str) -> io::Result<Grafo> {
         let linea = linea?;
         let partes: Vec<&str> = linea.trim().split(',').map(|s| s.trim()).collect();
         if partes.len() != 3 {
-            continue; // saltamos líneas vacías o mal formateadas
+            // saltamos líneas vacías o comentarios
+            continue;
         }
         let origen = partes[0];
         let destino = partes[1];
@@ -80,7 +64,7 @@ pub fn leer_grafo_desde_archivo(ruta: &str) -> io::Result<Grafo> {
             io::Error::new(io::ErrorKind::InvalidData, "Costo no es un número válido")
         })?;
 
-        // Buscamos índices de origen y destino
+        // Obtener índices
         if let (Some(&i_origen), Some(&i_destino)) = (
             grafo.mapa_nombre_indice.get(origen),
             grafo.mapa_nombre_indice.get(destino),
@@ -89,7 +73,7 @@ pub fn leer_grafo_desde_archivo(ruta: &str) -> io::Result<Grafo> {
         } else {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidData,
-                format!("Nombre de nodo desconocido: {} o {}", origen, destino),
+                format!("Nodo desconocido: '{}' o '{}'", origen, destino),
             ));
         }
     }
@@ -100,10 +84,6 @@ pub fn leer_grafo_desde_archivo(ruta: &str) -> io::Result<Grafo> {
 /// ================================================
 /// Escritura de la ruta encontrada en un archivo.
 /// ================================================
-
-/// Recibe un Vec<String> con los nombres de nodos (en orden) y escribe línea a línea
-/// en `ruta_salida` (por ejemplo "ruta_tesoro.txt").
-/// Si ocurre cualquier error de E/S, lo propaga hacia el llamador.
 pub fn escribir_ruta_en_archivo(ruta: &[String], ruta_salida: &str) -> io::Result<()> {
     let mut archivo = File::create(ruta_salida)?;
     for ubic in ruta {
