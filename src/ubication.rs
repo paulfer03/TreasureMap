@@ -1,11 +1,9 @@
-// src/ubicaciones.rs
-
 use std::collections::HashMap;
 use std::io;
 use std::io::BufRead;
 
 /// Info por cada nodo (índice):
-/// - `pista`: el texto descriptivo (no usado para lógica, pero útil para consola).
+/// - `pista`: el texto descriptivo (útil para mostrar en consola).
 /// - `next`: Option<usize> → índice del “siguiente nodo” que sugiere esta pista.
 /// - `visitado`: marca si ya pasamos por aquí durante la DFS.
 #[derive(Debug, Clone)]
@@ -20,7 +18,6 @@ pub struct InfoUbicacion {
 pub type Ubicaciones = Vec<InfoUbicacion>;
 
 /// Crea un Vec<InfoUbicacion> de largo `n`, inicializado con campos vacíos.
-/// Luego, quienes llamen a `leer_pistas_dinamico` rellenarán cada índice.
 pub fn inicializar_ubicaciones_vacias(n: usize) -> Ubicaciones {
     let mut v = Vec::with_capacity(n);
     for _ in 0..n {
@@ -33,16 +30,14 @@ pub fn inicializar_ubicaciones_vacias(n: usize) -> Ubicaciones {
     v
 }
 
-/// Lee “pistas.txt” con el nuevo formato dinámico:
-///   - La primera línea debe ser    Tesoro:<NombreNodo>
-///   - A partir de la línea en blanco, cada línea relevante es:
-///       NombreNodo,Pista textual,NombreDestino
+/// Lee “pistas.txt” con el formato dinámico:
 ///
-/// Parámetros:
-/// - `mapa_nombre_indice`: HashMap<String, usize> para saber el índice de cada nombre.
-/// - `ruta_pistas`: la ruta a “pistas.txt”.
+///   Tesoro:NombreNodo
 ///
-/// Retorna Ok((Vec<InfoUbicacion>, índice_del_tesoro)) o Err(...) en caso de fallo de E/S o mal formato.
+///   # (línea vacía o comentarios opcionales)
+///   NombreNodo,Pista textual,NombreDestino
+///
+/// Retorna Ok((Vec<InfoUbicacion>, índice_del_tesoro)) o Err en caso de fallo.
 pub fn leer_pistas_dinamico(
     mapa_nombre_indice: &HashMap<String, usize>,
     ruta_pistas: &str,
@@ -76,17 +71,14 @@ pub fn leer_pistas_dinamico(
             )
         })?;
 
-    // 3) Saltar hasta la línea en blanco (o hasta que encontremos la sección de pistas)
-    //    (Admitimos que haya comentarios o líneas vacías; buscamos la primera línea no vacía tras "Tesoro:")
+    // 3) Saltar hasta la línea en blanco (separador)
     let mut en_seccion_pistas = false;
     for linea in &mut lineas {
         let l = linea?;
         if l.trim().is_empty() {
-            // La línea vacía marca que lo siguiente es sección de pistas
             en_seccion_pistas = true;
             break;
         }
-        // Si hay comentarios antes (ej. líneas con '#') o espacios, los ignoramos.
     }
     if !en_seccion_pistas {
         return Err(io::Error::new(
@@ -95,27 +87,22 @@ pub fn leer_pistas_dinamico(
         ));
     }
 
-    // 4) Inicializar el vector de InfoUbicacion de largo n
+    // 4) Inicializar el vector de ubicaciones
     let n = mapa_nombre_indice.len();
     let mut ubicaciones = inicializar_ubicaciones_vacias(n);
 
-    // 5) Ahora, cada línea que no sea vacía se procesa como: NombreNodo,Pista,NombreDestino
+    // 5) Cada línea: "NombreNodo,Pista textual,NombreDestino"
     for linea in &mut lineas {
         let linea = linea?;
         let texto = linea.trim();
         if texto.is_empty() || texto.starts_with('#') {
-            // saltamos líneas vacías o comentarios
             continue;
         }
-        // Dividimos en 3 partes EXACTAS con splitn(3)
         let partes: Vec<&str> = texto.splitn(3, ',').map(|s| s.trim()).collect();
         if partes.len() != 3 {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidData,
-                format!(
-                    "Línea de pistas mal formateada (se esperaban 3 campos): '{}'",
-                    texto
-                ),
+                format!("Línea mal formateada: '{}'", texto),
             ));
         }
         let nombre = partes[0];
@@ -126,7 +113,7 @@ pub fn leer_pistas_dinamico(
         let idx_origen = mapa_nombre_indice.get(nombre).copied().ok_or_else(|| {
             io::Error::new(
                 io::ErrorKind::InvalidData,
-                format!("Nombre de nodo '{}' en pistas.txt no existe en el grafo", nombre),
+                format!("Nodo '{}' en pistas.txt no existe en el grafo", nombre),
             )
         })?;
 
@@ -146,10 +133,9 @@ pub fn leer_pistas_dinamico(
             Some(i)
         };
 
-        // Rellenamos la InfoUbicacion en la posición idx_origen
+        // Rellenar InfoUbicacion
         ubicaciones[idx_origen].pista = pista_texto;
         ubicaciones[idx_origen].next = idx_destino;
-        // visitado ya viene como false por defecto
     }
 
     Ok((ubicaciones, indice_tesoro))

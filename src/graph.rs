@@ -1,5 +1,3 @@
-// src/grafo.rs
-
 use std::collections::HashMap;
 
 /// Cada arista conecta implícitamente el nodo “u” (su índice en el Vec) con `destino` y un `costo`.
@@ -31,13 +29,13 @@ impl Grafo {
         }
     }
 
-    /// Agrega una arista no dirigida (bidireccional) entre u y v.
+    /// Agrega una arista no dirigida (bidireccional) entre u y v con peso `costo`.
     pub fn agregar_arista_no_dirigida(&mut self, u: usize, v: usize, costo: u32) {
         self.adyacencia[u].push(Arista { destino: v, costo });
         self.adyacencia[v].push(Arista { destino: u, costo });
     }
 
-    /// Devuelve Some(índice) si existe `nombre` en el grafo, o None si no.
+    /// Devuelve Some(índice) si existe `nombre` en el grafo, o None si no existe.
     pub fn indice_por_nombre(&self, nombre: &str) -> Option<usize> {
         self.mapa_nombre_indice.get(nombre).copied()
     }

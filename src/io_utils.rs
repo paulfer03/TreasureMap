@@ -1,13 +1,13 @@
-// src/io_utils.rs
-
 use crate::graph::{Arista, Grafo};
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{self, prelude::*, BufReader, Write};
 
-/// ======================================
-/// Lectura de grafo desde "grafo.txt"
-/// ======================================
+/// Lee `grafo.txt` con formato:
+///   Nodos: A,B,C,...
+///   Aristas:
+///   A,B,3
+///   B,C,5
 pub fn leer_grafo_desde_archivo(ruta: &str) -> io::Result<Grafo> {
     let archivo = File::open(ruta)?;
     let lector = BufReader::new(archivo);
@@ -55,7 +55,7 @@ pub fn leer_grafo_desde_archivo(ruta: &str) -> io::Result<Grafo> {
         let linea = linea?;
         let partes: Vec<&str> = linea.trim().split(',').map(|s| s.trim()).collect();
         if partes.len() != 3 {
-            // saltamos líneas vacías o comentarios
+            // Saltar líneas vacías o comentarios
             continue;
         }
         let origen = partes[0];
@@ -81,9 +81,7 @@ pub fn leer_grafo_desde_archivo(ruta: &str) -> io::Result<Grafo> {
     Ok(grafo)
 }
 
-/// ================================================
-/// Escritura de la ruta encontrada en un archivo.
-/// ================================================
+/// Escribe la ruta encontrada en un archivo (una línea por ubicación).
 pub fn escribir_ruta_en_archivo(ruta: &[String], ruta_salida: &str) -> io::Result<()> {
     let mut archivo = File::create(ruta_salida)?;
     for ubic in ruta {

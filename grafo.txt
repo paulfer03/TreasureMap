@@ -4,5 +4,6 @@ Beach,Cave,3
 Beach,Forest,5
 Cave,Mountain,2
 Forest,Woods,1
-Mountain,Treasure,4
+Woods,Mountain,1
+Mountain,Treasure,3
 Woods,Treasure,6
