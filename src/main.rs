@@ -3,7 +3,7 @@ mod ubication;
 mod io_utils;
 mod search;
 
-use crate::graph::Grafo;
+use crate::graph::{Arista, Grafo};
 use crate::ubication::leer_pistas_dinamico;
 use crate::io_utils::{leer_grafo_desde_archivo, escribir_ruta_en_archivo};
 use crate::search::{dfs_buscar_tesoro, dijkstra_ruta_minima};
@@ -16,7 +16,7 @@ fn main() -> io::Result<()> {
     let grafo: Grafo = leer_grafo_desde_archivo(ruta_grafo)?;
     println!("Grafo cargado con {} nodos.\n", grafo.nombres.len());
 
-    // 2) Leer pistas dinámicas de "pistas.txt" y obtener (Ubicaciones, indice_tesoro)
+    // 2) Leer pistas dinámicas de "pistas.txt" y obtener (Ubicaciones, índice_tesoro)
     let ruta_pistas = "pistas.txt";
     println!("Cargando pistas dinámicas desde '{}'\n", ruta_pistas);
     let (mut ubicaciones, indice_tesoro) =
@@ -41,7 +41,7 @@ fn main() -> io::Result<()> {
         grafo.nombres[indice_inicio], indice_inicio
     );
 
-    // Bucle principal del menú
+    // 4) Bucle principal del menú
     loop {
         println!("\n=== MENÚ ===");
         println!("1) Seguir pistas (DFS)");
@@ -57,19 +57,21 @@ fn main() -> io::Result<()> {
         match opcion {
             1 => {
                 println!("\n--- Opción 1: DFS siguiendo pistas ---\n");
-                // Resetear vector de visitados
-                let mut visitado = vec![false; grafo.nombres.len()];
-                let mut ruta_indices = Vec::new();
+                // Preparamos vectores para DFS
+                let mut camino_actual: Vec<usize> = Vec::new();
+                let mut ruta_encontrada: Option<Vec<usize>> = None;
 
                 let hallado = dfs_buscar_tesoro(
                     &grafo,
+                    &mut ubicaciones,
                     indice_inicio,
                     indice_tesoro,
-                    &mut visitado,
-                    &mut ruta_indices,
+                    &mut camino_actual,
+                    &mut ruta_encontrada,
                 );
                 if hallado {
-                    let ruta_nombres: Vec<String> = ruta_indices
+                    let vec_indices = ruta_encontrada.unwrap();
+                    let ruta_nombres: Vec<String> = vec_indices
                         .iter()
                         .map(|&i| grafo.nombres[i].clone())
                         .collect();
@@ -92,6 +94,17 @@ fn main() -> io::Result<()> {
                         .map(|&i| grafo.nombres[i].clone())
                         .collect();
                     println!("¡Tesoro encontrado! Ruta (Dijkstra): {:?}\n", ruta_nombres);
+                    let mut costo_total: u32 = 0;
+                    for w in ruta_indices.windows(2) {
+                        let u = w[0];
+                        let v = w[1];
+                        for arista in  &grafo.adyacencia[u]{
+                            if arista.destino == v {
+                                costo_total += arista.costo as u32;
+                            }
+                        }
+                    }
+                    println!("Costo total de la ruta: {}\n", costo_total);
                     escribir_ruta_en_archivo(&ruta_nombres, "ruta_tesoro.txt")?;
                     println!("Ruta guardada en 'ruta_tesoro.txt'.\n");
                 }

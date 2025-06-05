@@ -4,59 +4,72 @@ use std::collections::BinaryHeap;
 use crate::graph::Grafo;
 use crate::ubication::{Ubicaciones, InfoUbicacion};
 
-/// DFS recursivo que:
-/// 1. Marca `visitado` en el nodo actual.
-/// 2. Añade `actual` a `ruta`.
-/// 3. Si `actual == tesoro`, retorna true (ruta completa en `ruta`).
-/// 4. Si hay `next` y no visitado, lo sigue recursivamente.
-/// 5. Backtracking si no se halla allí.
+/// DFS guiado por pistas, sin usar `visitado` como filtro estricto.
+/// Se basa en `camino_actual` para detectar ciclos, de modo que:
+///   1) Si existe `ubicaciones[actual].next`, siempre lo intenta primero (si no está en la ruta actual).
+///   2) Si no convence (o genera ciclo), explora los vecinos normales.
+/// Al encontrar `tesoro`, clona `camino_actual` en `ruta_encontrada`.
 pub fn dfs_buscar_tesoro(
     grafo: &Grafo,
+    ubicaciones: &mut Ubicaciones,
     actual: usize,
     tesoro: usize,
-    visitado: &mut Vec<bool>,
-    ruta: &mut Vec<usize>,
+    camino_actual: &mut Vec<usize>,
+    ruta_encontrada: &mut Option<Vec<usize>>,
 ) -> bool {
-    visitado[actual] = true;
-    ruta.push(actual);
+    // Si el nodo `actual` ya está en la ruta parcial, hay un ciclo → cortamos
+    if camino_actual.contains(&actual) {
+        return false;
+    }
 
+    // Añadimos `actual` a la ruta parcial
+    camino_actual.push(actual);
+
+    // ¿Llegamos al tesoro?
     if actual == tesoro {
+        *ruta_encontrada = Some(camino_actual.clone());
         return true;
     }
-    if let Some(sig) = grafo.adyacencia[actual]
-        .iter()
-        .find_map(|arista| {
-            // Solo seguir “next” si coincide con el campo InfoUbicacion::next
-            // (esto asume que `ubicaciones` se actualizó para reflejarlo).
-            None::<usize>
-        })
-    {
-        // No usado en esta implementación; la parte "next" se maneja externamente.
-    }
 
-    // Explorar vecinos
-    for arista in &grafo.adyacencia[actual] {
-        if !visitado[arista.destino] {
-            if dfs_buscar_tesoro(grafo, arista.destino, tesoro, visitado, ruta) {
+    // 1) Intentamos seguir la pista (`next`) antes que explorar vecinos
+    if let Some(sig) = ubicaciones[actual].next {
+        // Solo si `sig` no genera ciclo en la ruta parcial
+        if !camino_actual.contains(&sig) {
+            if dfs_buscar_tesoro(grafo, ubicaciones, sig, tesoro, camino_actual, ruta_encontrada) {
                 return true;
             }
         }
     }
 
-    ruta.pop();
+    // 2) Si no encontramos por la pista, exploramos todos los vecinos no cíclicos
+    for arista in &grafo.adyacencia[actual] {
+        let vecino = arista.destino;
+        if !camino_actual.contains(&vecino) {
+            if dfs_buscar_tesoro(grafo, ubicaciones, vecino, tesoro, camino_actual, ruta_encontrada) {
+                return true;
+            }
+        }
+    }
+
+    // Backtracking: sacamos `actual` de la ruta parcial
+    camino_actual.pop();
     false
 }
 
+/// Nodo auxiliar para la cola de prioridad de Dijkstra.
+/// Contiene la `costo` acumulada hasta `indice`.
 #[derive(Copy, Clone, Eq, PartialEq)]
 struct NodoHeap {
     costo: u32,
     indice: usize,
 }
 
+// Hacemos que el `BinaryHeap` trate la menor `costo` como prioridad máxima.
 impl Ord for NodoHeap {
     fn cmp(&self, other: &Self) -> Ordering {
-        // Invertimos para que el menor costo sea extraído primero
-        other.costo.cmp(&self.costo)
+        other
+            .costo
+            .cmp(&self.costo)
             .then_with(|| self.indice.cmp(&other.indice))
     }
 }
@@ -67,40 +80,52 @@ impl PartialOrd for NodoHeap {
     }
 }
 
-/// Implementa Dijkstra para encontrar la ruta mínima desde `inicio` hasta `destino`.
-/// Retorna un vector con los índices del camino más corto, o vacío si no hay ruta.
+/// Dijkstra: retorna un Vec<usize> con la ruta de menor costo desde `inicio` hasta `destino`.
+/// Si no existe camino, devuelve un vector vacío.
 pub fn dijkstra_ruta_minima(grafo: &Grafo, inicio: usize, destino: usize) -> Vec<usize> {
     let n = grafo.nombres.len();
     let mut dist: Vec<u32> = vec![u32::MAX; n];
     let mut padres: Vec<Option<usize>> = vec![None; n];
     let mut heap = BinaryHeap::new();
 
+    // Inicializamos
     dist[inicio] = 0;
-    heap.push(NodoHeap { costo: 0, indice: inicio });
+    heap.push(NodoHeap {
+        costo: 0,
+        indice: inicio,
+    });
 
     while let Some(NodoHeap { costo, indice }) = heap.pop() {
-        if indice == destino {
-            break;
-        }
+        // Si ya mejoramos esa entrada, la ignoramos
         if costo > dist[indice] {
             continue;
         }
+        // Si llegamos al destino, podemos detenernos
+        if indice == destino {
+            break;
+        }
+        // Relajamos cada arista saliente
         for arista in &grafo.adyacencia[indice] {
-            let next = arista.destino;
-            let next_costo = costo.saturating_add(arista.costo);
-            if next_costo < dist[next] {
-                dist[next] = next_costo;
-                padres[next] = Some(indice);
-                heap.push(NodoHeap { costo: next_costo, indice: next });
+            let v = arista.destino;
+            let nuevo_costo = costo.saturating_add(arista.costo);
+            if nuevo_costo < dist[v] {
+                dist[v] = nuevo_costo;
+                padres[v] = Some(indice);
+                heap.push(NodoHeap {
+                    costo: nuevo_costo,
+                    indice: v,
+                });
             }
         }
     }
 
-    // Reconstruir la ruta
-    let mut ruta = Vec::new();
+    // Si no existe camino al destino, devolvemos un Vec vacío
     if dist[destino] == u32::MAX {
-        return ruta; // Ningún camino
+        return Vec::new();
     }
+
+    // Reconstruimos la ruta inversa desde `destino` hasta `inicio`
+    let mut ruta: Vec<usize> = Vec::new();
     let mut actual = destino;
     while let Some(p) = padres[actual] {
         ruta.push(actual);

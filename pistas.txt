@@ -6,5 +6,4 @@ Cave,Busca donde el sol no llega,Mountain
 Mountain,En la cima rocosa contempla el valle,Treasure
 Forest,Permanece detrás del árbol más grande,Woods
 Woods,Allí donde las hojas murmuran al viento,Cave
-Treasure,El tesoro está escondido bajo el árbol más antiguo,Forest
 Treasure,¡Has llegado!,
