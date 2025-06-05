@@ -1,4 +1,4 @@
-Nodos: Beach,Cave,Mountain,Forest,Woods,Treasure
+Nodos: Beach,Cave,Mountain,Forest,Woods,Monte,Lago,Rio,Treasure
 Aristas:
 Beach,Cave,3
 Beach,Forest,5

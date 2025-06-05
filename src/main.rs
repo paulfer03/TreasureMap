@@ -1,5 +1,5 @@
 // src/main.rs
-
+// haceer menu para elegir si toma en cuenta las pistas dinámicas o usa los pesos del grafo (por dikstra)
 mod graph;
 mod ubication;
 mod io_utils;
@@ -29,7 +29,7 @@ fn main() -> io::Result<()> {
     );
 
     // 3) Definir nodo de inicio. Por ejemplo “Beach” (puedes cambiarlo si quieres)
-    let nombre_inicio = "Beach";
+    let nombre_inicio = "Forest";
     let indice_inicio = grafo
         .indice_por_nombre(nombre_inicio)
         .unwrap_or_else(|| {
